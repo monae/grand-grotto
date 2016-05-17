@@ -1,0 +1,89 @@
+
+task generateMessageClass(type: GenerateMessageClassTask) {
+    source = file('src/main/java/info/elekiuo/grandgrotto/core/Kernel.java')
+    dest = file('src/main/java/info/elekiuo/grandgrotto/core/Message.java')
+}
+
+class GenerateMessageClassTask extends DefaultTask {
+    @InputFile def source
+    @OutputFile def dest
+
+    @TaskAction
+    def run() {
+        def text = source.getText();
+
+        def models = []
+        def m = text =~ /Message\s+process(\w+)\((.*?)\)/
+        while (m.find()) {
+            def fields = []
+            def m2 = m.group(2) =~ /\s*(\w+)\s+(\w*)\s*,?/
+            while (m2.find()) {
+                fields << [type: m2.group(1), name: m2.group(2)]
+            }
+
+            models << [name: m.group(1), fields: fields]
+        }
+
+        dest.write(generateSource(models))
+    }
+
+    static def generateSource(models) {
+        return """\
+package info.elekiuo.grandgrotto.core;
+
+import info.elekiuo.grandgrotto.geometry.Direction;
+
+public abstract class Message {
+    private Message() {
+    }
+
+    abstract Monster getMonster();
+    abstract Message process(Kernel kernel);
+
+${models.collect { model -> generateModelSource(model) }.join '\n'}\
+}
+""".toString()
+    }
+
+    static def generateModelSource(model) {
+        def name = model.name
+        def fields = model.fields
+
+        return """\
+    public static class ${name} extends Message {
+${
+        fields.collect { f ->
+            """\
+        public final ${f.type} ${f.name};
+"""
+        }.join ''
+    }\
+
+        ${name}(${fields.collect { f -> "${f.type} ${f.name}" }.join ', '}) {
+${
+        fields.collect { f ->
+            """\
+            this.${f.name} = ${f.name};
+"""
+        }.join ''
+    }\
+        }
+
+        @Override
+        public String toString() {
+            return "${name}[${fields.collect { f -> "${f.name}=\" + ${f.name} + \"" }.join ','}]";
+        }
+
+        @Override
+        public Monster getMonster() {
+            return monster;
+        }
+
+        @Override
+        Message process(Kernel kernel) {
+            return kernel.process${name}(${fields*.name.join ', '});
+        }
+    }
+""".toString()
+    }
+}

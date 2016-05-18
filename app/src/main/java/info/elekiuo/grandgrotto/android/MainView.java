@@ -169,10 +169,10 @@ public class MainView extends FrameLayout {
         shell = new Shell(new Random());
         Monster player = shell.getPlayer();
 
-        float d = getResources().getDisplayMetrics().density;
-        Position c = player.getPosition();
-        float scale = Math.max(4 * d, Math.min(96 * d, scrollState.scale));
-        scroller.updateState(new Scroller.State(c.x, c.y, scale));
+        //float d = getResources().getDisplayMetrics().density;
+        Position position = player.getPosition();
+        //float scale = Math.max(4 * d, Math.min(96 * d, scrollState.scale));
+        scroller.updateState(new Scroller.State(position.x, position.y, detectScale()));
 
         updateMonsterSprites();
         updateStage();
@@ -180,6 +180,21 @@ public class MainView extends FrameLayout {
         glView.requestRender();
 
         updateStatus();
+    }
+
+    private float detectScale() {
+        Region sight = shell.getSight();
+        int max = Math.max(sight.getCols(), sight.getRows());
+        float d = getResources().getDisplayMetrics().density;
+        if (max < 15) {
+            return 36 * d;
+        } else if (max < 25) {
+            return 32 * d;
+        } else if (max < 35) {
+            return 28 * d;
+        } else {
+            return 24 * d;
+        }
     }
 
     private static Mesh createStageMesh(Matrix<Terrain> cells, TextureAtlas textureAtlas) {
@@ -322,6 +337,7 @@ public class MainView extends FrameLayout {
     }
 
     private void handleMove() {
+        final float scale1 = scrollState.scale;
         final Region sight1 = shell.getSight();
 
         final MoveTracker moveTracker = new MoveTracker();
@@ -342,6 +358,7 @@ public class MainView extends FrameLayout {
             }
         }
 
+        final float scale2 = detectScale();
         final Region sight2 = shell.getSight();
 
         animator.start(new Animator.Callback() {
@@ -372,7 +389,8 @@ public class MainView extends FrameLayout {
                         sight1.south + (sight2.south - sight1.south) * fraction));
 
                 if (playerPoint != null) {
-                    scroller.updateState(new Scroller.State(playerPoint.x, playerPoint.y, scrollState.scale));
+                    scroller.updateState(new Scroller.State(playerPoint.x, playerPoint.y,
+                            scale1 + (scale2 - scale1) * fraction));
                 }
 
                 glView.requestRender();
@@ -382,12 +400,12 @@ public class MainView extends FrameLayout {
                 updateMonsterSprites();
                 updateMask();
                 Position c = shell.getPlayer().getPosition();
-                scroller.updateState(new Scroller.State(c.x, c.y, scrollState.scale));
+                scroller.updateState(new Scroller.State(c.x, c.y, scale2));
                 glView.requestRender();
 
                 handleMessage();
             }
-        }, 150, new DecelerateInterpolator(0.75f));
+        }, 200);
     }
 
     private void updateStatus() {

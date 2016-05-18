@@ -15,6 +15,7 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
     private final TextureAtlas textureAtlas;
     private Mesh stageMesh;
     private Mask mask;
+    private final Shadow shadow = new Shadow();
 
     private final Collection<Sprite> sprites = new ArrayList<>();
 
@@ -60,6 +61,7 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
     @Override
     public void onSurfaceChanged(GL10 gl, int width, int height) {
         glViewport(0, 0, width, height);
+        shadow.change(width, height);
     }
 
     @Override
@@ -97,5 +99,15 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
         for (Sprite sprite : sprites) {
             sprite.draw(drawer, m, n);
         }
+
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glBindTexture(GL_TEXTURE_2D, blankTexture);
+
+        shadow.draw(drawer, m, n);
+
+        glDisable(GL_BLEND);
+        glBindTexture(GL_TEXTURE_2D, texture);
     }
 }

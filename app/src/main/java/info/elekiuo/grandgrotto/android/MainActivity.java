@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -23,6 +22,9 @@ public class MainActivity extends Activity {
         addContentView(mainView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
+        LinearLayout buttons = new LinearLayout(this);
+        buttons.setOrientation(LinearLayout.HORIZONTAL);
+
         TextView refreshButton = new Button(this);
         refreshButton.setText("Refresh");
         refreshButton.setOnClickListener(new View.OnClickListener() {
@@ -31,11 +33,9 @@ public class MainActivity extends Activity {
                 mainView.refresh();
             }
         });
-        addContentView(refreshButton, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.LEFT | Gravity.BOTTOM));
+        buttons.addView(refreshButton);
 
-        LinearLayout buttons = new LinearLayout(this);
-        buttons.setOrientation(LinearLayout.HORIZONTAL);
+        buttons.addView(new View(this), new LinearLayout.LayoutParams(0, 0, 1));
 
         TextView restButton = new Button(this);
         restButton.setText("…");
@@ -88,7 +88,7 @@ public class MainActivity extends Activity {
         buttons.addView(eastButton);
 
         addContentView(buttons, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.RIGHT | Gravity.BOTTOM));
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
 
         // avoid clipping
         addContentView(new View(this), new FrameLayout.LayoutParams(

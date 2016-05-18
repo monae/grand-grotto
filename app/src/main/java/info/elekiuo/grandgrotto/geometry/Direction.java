@@ -37,36 +37,40 @@ public enum Direction {
         return fromVector(vector.dx, vector.dy);
     }
 
-    public Direction rotate(int angle) {
+    public Direction rotateLeft(int angle) {
         return VALUES[(ordinal() + angle) & 7];
     }
 
+    public Direction rotateRight(int angle) {
+        return rotateLeft(-angle);
+    }
+
     public Direction frontLeft() {
-        return rotate(1);
+        return rotateLeft(1);
     }
 
     public Direction left() {
-        return rotate(2);
+        return rotateLeft(2);
     }
 
     public Direction rearLeft() {
-        return rotate(3);
+        return rotateLeft(3);
     }
 
     public Direction rear() {
-        return rotate(4);
+        return rotateLeft(4);
     }
 
     public Direction rearRight() {
-        return rotate(5);
+        return rotateLeft(5);
     }
 
     public Direction right() {
-        return rotate(6);
+        return rotateLeft(6);
     }
 
     public Direction frontRight() {
-        return rotate(7);
+        return rotateLeft(7);
     }
 
     public boolean isCardinal() {

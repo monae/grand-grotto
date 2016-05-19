@@ -171,6 +171,8 @@ public class MainView extends FrameLayout {
         animator.cancel();
 
         shell = new Shell(new Random());
+        controlView.setShell(shell);
+
         Monster player = shell.getPlayer();
 
         //float d = getResources().getDisplayMetrics().density;
@@ -259,20 +261,16 @@ public class MainView extends FrameLayout {
 
     public void move(Direction direction) {
         Monster player = shell.getPlayer();
+        if (player.isMovableTo(direction)) {
+            executeCommand(new Command.Move(direction));
+        }
+    }
+
+    public void attack(Direction direction) {
+        Monster player = shell.getPlayer();
         Position position = player.getPosition();
         if (shell.getMonster(position.plus(direction)) != null) {
             executeCommand(new Command.Attack(direction));
-        } else if (player.isMovableTo(direction)) {
-            executeCommand(new Command.Move(direction));
-        } else if (direction.isOrdinal()) {
-            Vector v = direction.vector;
-            Direction d1 = Direction.fromVector(v.dx, 0);
-            Direction d2 = Direction.fromVector(0, v.dy);
-            if (player.isMovableTo(d1) && !player.isMovableTo(d2)) {
-                executeCommand(new Command.Move(d1));
-            } else if (player.isMovableTo(d2) && !player.isMovableTo(d1)) {
-                executeCommand(new Command.Move(d2));
-            }
         }
     }
 

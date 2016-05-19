@@ -42,7 +42,7 @@ public class StatusView extends FrameLayout {
     }
 
     {
-        setBackgroundResource(R.drawable.status);
+        setBackgroundResource(R.drawable.bar);
 
         lifeTextView = new TextView(getContext());
         lifeTextView.setTextColor(ColorStateList.valueOf(0xffffffff));

@@ -14,6 +14,7 @@ import android.view.animation.Animation;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.TranslateAnimation;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ import info.elekiuo.grandgrotto.geometry.Direction;
 import info.elekiuo.grandgrotto.geometry.Matrix;
 import info.elekiuo.grandgrotto.geometry.Position;
 import info.elekiuo.grandgrotto.geometry.Region;
+import info.elekiuo.grandgrotto.geometry.Vector;
 
 public class MainView extends FrameLayout {
 
@@ -78,6 +80,10 @@ public class MainView extends FrameLayout {
 
         statusView = new StatusView(getContext());
         addView(statusView, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.RIGHT | Gravity.TOP));
+
+        ImageView imageView = new ImageView(getContext());
+        imageView.setImageResource(R.drawable.control);
+        addView(imageView, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.RIGHT | Gravity.BOTTOM));
 
         scroller.setListener(new Scroller.Listener() {
             @Override
@@ -260,6 +266,15 @@ public class MainView extends FrameLayout {
             executeCommand(new Command.Attack(direction));
         } else if (player.isMovableTo(direction)) {
             executeCommand(new Command.Move(direction));
+        } else if (direction.isOrdinal()) {
+            Vector v = direction.vector;
+            Direction d1 = Direction.fromVector(v.dx, 0);
+            Direction d2 = Direction.fromVector(0, v.dy);
+            if (player.isMovableTo(d1) && !player.isMovableTo(d2)) {
+                executeCommand(new Command.Move(d1));
+            } else if (player.isMovableTo(d2) && !player.isMovableTo(d1)) {
+                executeCommand(new Command.Move(d2));
+            }
         }
     }
 
@@ -292,6 +307,12 @@ public class MainView extends FrameLayout {
                 System.out.println(message);
             }
         }
+        post(new Runnable() {
+            @Override
+            public void run() {
+                checkMove();
+            }
+        });
     }
 
     private static class MoveTracker {
@@ -471,8 +492,43 @@ public class MainView extends FrameLayout {
         renderer.setMask(createMask(shell.getSight()));
     }
 
+    boolean pressed;
+    float currentX;
+    float currentY;
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        return scroller.handleTouchEvent(event) || super.onTouchEvent(event);
+        switch (event.getActionMasked()) {
+        case MotionEvent.ACTION_DOWN:
+            pressed = true;
+            currentX = event.getX();
+            currentY = event.getY();
+            checkMove();
+            break;
+        case MotionEvent.ACTION_MOVE:
+            currentX = event.getX();
+            currentY = event.getY();
+            checkMove();
+            break;
+        case MotionEvent.ACTION_UP:
+        case MotionEvent.ACTION_CANCEL:
+            pressed = false;
+            break;
+        }
+        return true;
+        //return scroller.handleTouchEvent(event) || super.onTouchEvent(event);
+    }
+
+    private void checkMove() {
+        if (!pressed || animator.isRunning()) {
+            return;
+        }
+        float dx = currentX - getWidth() / 2f;
+        float dy = currentY - getHeight() / 2f;
+        if (Math.hypot(dx, dy) > 50) {
+            Direction d = Direction.EAST.rotateLeft((int) Math.round(Math.atan2(-dy, dx) * 4 / Math.PI));
+            move(d);
+        } else {
+            rest();
+        }
     }
 }

@@ -8,13 +8,13 @@ import android.opengl.GLSurfaceView;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.TranslateAnimation;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -54,6 +54,7 @@ public class MainView extends FrameLayout {
 
     private final GLSurfaceView glView;
     private final StatusView statusView;
+    private final ControlView controlView;
     private final MainViewRenderer renderer = new MainViewRenderer(textureAtlas);
 
     private final VertexTexBuffer playerVertexBuffer = createPlayerVertexBuffer();
@@ -71,19 +72,16 @@ public class MainView extends FrameLayout {
     }
 
     {
-        glView = new GLSurfaceView(getContext());
+        LayoutInflater.from(getContext()).inflate(R.layout.main_view, this);
+        glView = (GLSurfaceView) getChildAt(0);
         glView.setDebugFlags(GLSurfaceView.DEBUG_CHECK_GL_ERROR | GLSurfaceView.DEBUG_LOG_GL_CALLS);
         glView.setEGLContextClientVersion(2);
         glView.setRenderer(renderer);
         glView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
-        addView(glView);
 
-        statusView = new StatusView(getContext());
-        addView(statusView, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.RIGHT | Gravity.TOP));
+        statusView = (StatusView) getChildAt(1);
 
-        ImageView imageView = new ImageView(getContext());
-        imageView.setImageResource(R.drawable.control);
-        addView(imageView, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.RIGHT | Gravity.BOTTOM));
+        controlView = (ControlView) getChildAt(2);
 
         scroller.setListener(new Scroller.Listener() {
             @Override
@@ -310,7 +308,7 @@ public class MainView extends FrameLayout {
         post(new Runnable() {
             @Override
             public void run() {
-                checkMove();
+                controlView.checkMove();
             }
         });
     }
@@ -492,43 +490,12 @@ public class MainView extends FrameLayout {
         renderer.setMask(createMask(shell.getSight()));
     }
 
-    boolean pressed;
-    float currentX;
-    float currentY;
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        switch (event.getActionMasked()) {
-        case MotionEvent.ACTION_DOWN:
-            pressed = true;
-            currentX = event.getX();
-            currentY = event.getY();
-            checkMove();
-            break;
-        case MotionEvent.ACTION_MOVE:
-            currentX = event.getX();
-            currentY = event.getY();
-            checkMove();
-            break;
-        case MotionEvent.ACTION_UP:
-        case MotionEvent.ACTION_CANCEL:
-            pressed = false;
-            break;
-        }
-        return true;
-        //return scroller.handleTouchEvent(event) || super.onTouchEvent(event);
+    public boolean isAnimating() {
+        return animator.isRunning();
     }
 
-    private void checkMove() {
-        if (!pressed || animator.isRunning()) {
-            return;
-        }
-        float dx = currentX - getWidth() / 2f;
-        float dy = currentY - getHeight() / 2f;
-        if (Math.hypot(dx, dy) > 50) {
-            Direction d = Direction.EAST.rotateLeft((int) Math.round(Math.atan2(-dy, dx) * 4 / Math.PI));
-            move(d);
-        } else {
-            rest();
-        }
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        return scroller.handleTouchEvent(event) || super.onTouchEvent(event);
     }
 }

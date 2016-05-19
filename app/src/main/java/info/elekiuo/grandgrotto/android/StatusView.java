@@ -14,6 +14,7 @@ import android.view.animation.Animation;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.ScaleAnimation;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 public class StatusView extends FrameLayout {
@@ -43,14 +44,24 @@ public class StatusView extends FrameLayout {
 
     {
         setBackgroundResource(R.drawable.bar);
+        ImageView imageView = new ImageView(getContext());
+        imageView.setImageResource(R.drawable.bar);
+        addView(imageView);
 
         lifeTextView = new TextView(getContext());
         lifeTextView.setTextColor(ColorStateList.valueOf(0xffffffff));
         lifeTextView.setTypeface(Typeface.DEFAULT_BOLD);
-        lifeTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 32);
+        lifeTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         lifeTextView.setGravity(Gravity.CENTER);
         float d = getResources().getDisplayMetrics().density;
-        addView(lifeTextView, new LayoutParams((int) (80 * d), (int) (66 * d), Gravity.LEFT | Gravity.TOP));
+        addView(lifeTextView);
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        setMeasuredDimension(
+                resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec),
+                resolveSize(getSuggestedMinimumHeight(), heightMeasureSpec));
     }
 
     public void setLife(int life) {
@@ -88,7 +99,7 @@ public class StatusView extends FrameLayout {
             this.displayLife = displayLife;
             String text = "" + Math.round(displayLife);
             lifeTextView.setText(text);
-            lifeTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 240 / (4 + text.length()));
+            lifeTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 200 / (4 + text.length()));
             invalidate();
         }
     }
@@ -106,7 +117,7 @@ public class StatusView extends FrameLayout {
 
         if (displayLife > 0 && maxLife > 0) {
             float d = getResources().getDisplayMetrics().density;
-            canvas.drawRect(76 * d, 15 * d, (76 + 212 * displayLife / maxLife) * d, 35 * d, paint);
+            canvas.drawRect(177 * d, 11 * d, (177 + 173.5f * displayLife / maxLife) * d, 29 * d, paint);
         }
     }
 }

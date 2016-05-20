@@ -13,6 +13,7 @@ import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.DecelerateInterpolator;
+import android.view.animation.Interpolator;
 import android.view.animation.TranslateAnimation;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -34,12 +35,11 @@ import info.elekiuo.grandgrotto.geometry.Direction;
 import info.elekiuo.grandgrotto.geometry.Matrix;
 import info.elekiuo.grandgrotto.geometry.Position;
 import info.elekiuo.grandgrotto.geometry.Region;
-import info.elekiuo.grandgrotto.geometry.Vector;
 
 public class MainView extends FrameLayout {
 
-    private final Animator animator = new Animator();
-    private final Animator cameraAnimator = new Animator();
+    private final GLAnimator moveAnimator = new GLAnimator();
+    private final GLAnimator cameraAnimator = new GLAnimator();
 
     private Shell shell;
 
@@ -111,6 +111,10 @@ public class MainView extends FrameLayout {
     }
 
     private float[] getWorldMatrix() {
+        Scroller.State scrollState = this.scrollState;
+        int width = getWidth();
+        int height = getHeight();
+
         float[] m = new float[] {
                 1, 0, 0, 0,
                 0, 1, 0, 0,
@@ -124,8 +128,8 @@ public class MainView extends FrameLayout {
         float c = 15/16f;
         float s = (float) Math.sqrt(1 - c * c);
 
-        float sx = 2 * scrollState.scale / getWidth();
-        float sy = -2 * scrollState.scale / getHeight();
+        float sx = 2 * scrollState.scale / width;
+        float sy = -2 * scrollState.scale / height;
         float sz = -scrollState.scale / 1024f;
         float f = 0.4f;
 
@@ -169,7 +173,7 @@ public class MainView extends FrameLayout {
     }
 
     public void refresh() {
-        animator.cancel();
+        moveAnimator.cancel();
         cameraAnimator.cancel();
 
         shell = new Shell(new Random());
@@ -277,7 +281,7 @@ public class MainView extends FrameLayout {
     }
 
     private void executeCommand(Command command) {
-        if (animator.isRunning()) {
+        if (moveAnimator.isRunning()) {
             return;
         }
         if (!shell.isExecutable(command)) {
@@ -305,12 +309,13 @@ public class MainView extends FrameLayout {
                 System.out.println(message);
             }
         }
-        post(new Runnable() {
+
+        postDelayed(new Runnable() {
             @Override
             public void run() {
                 controlView.checkMove();
             }
-        });
+        }, 1);
     }
 
     private static class MoveTracker {
@@ -379,17 +384,18 @@ public class MainView extends FrameLayout {
             }
         }
 
+        updateStatus();
+        updateStage();
+        glView.requestRender();
+
         final Region sight2 = shell.getSight();
         final float x2 = (shell.getPlayer().getPosition().x * 6 + sight2.west + sight2.east) / 8f;
         final float y2 = (shell.getPlayer().getPosition().y * 6 + sight2.north + sight2.south) / 8f;
         final float scale2 = detectScale();
 
-        animator.start(new Animator.Callback() {
+        moveAnimator.start(new Animator.Callback() {
             @Override
             public void onAnimationStart() {
-                updateStatus();
-                updateStage();
-                glView.requestRender();
             }
             @Override
             public void onAnimationUpdate(float fraction) {
@@ -406,15 +412,20 @@ public class MainView extends FrameLayout {
                         sight1.east + (sight2.east - sight1.east) * fraction,
                         sight1.south + (sight2.south - sight1.south) * fraction));
 
-                glView.requestRender();
+                //glView.requestRender();
             }
             @Override
             public void onAnimationEnd() {
                 updateMonsterSprites();
                 updateMask();
-                glView.requestRender();
+                //glView.requestRender();
 
-                handleMessage();
+                postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        handleMessage();
+                    }
+                }, 20);
             }
         }, 200);
 
@@ -430,7 +441,7 @@ public class MainView extends FrameLayout {
                         y1 + (y2 - y1) * fraction,
                         scale1 + (scale2 - scale1) * fraction));
 
-                glView.requestRender();
+                //glView.requestRender();
             }
 
             @Override
@@ -504,12 +515,81 @@ public class MainView extends FrameLayout {
     }
 
     public boolean isAnimating() {
-        return animator.isRunning();
+        return moveAnimator.isRunning();
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         cameraAnimator.cancel();
         return scroller.handleTouchEvent(event) || super.onTouchEvent(event);
+    }
+
+
+    private class GLAnimator {
+        private class Entry implements MainViewRenderer.Task {
+            private final Animator.Callback callback;
+            private final long duration;
+            private final Interpolator interpolator;
+
+            private long startTime = -1;
+            private volatile boolean cancelled;
+            private volatile boolean end;
+
+            private Entry(Animator.Callback callback, long duration, Interpolator interpolator) {
+                this.callback = callback;
+                this.duration = duration;
+                this.interpolator = interpolator;
+            }
+
+            @Override
+            public void run(long time) {
+                if (startTime < 0) {
+                    if (cancelled) {
+                        end = true;
+                        return;
+                    }
+                    startTime = time;
+                    callback.onAnimationStart();
+                } else if (cancelled || startTime + duration <= time) {
+                    callback.onAnimationEnd();
+                    end = true;
+                    return;
+                } else {
+                    float fraction = (float) (time - startTime) / duration;
+                    if (interpolator != null) {
+                        fraction = interpolator.getInterpolation(fraction);
+                    }
+                    callback.onAnimationUpdate(fraction);
+                }
+
+                renderer.addTask(this);
+                glView.requestRender();
+            }
+        }
+
+        private Entry entry;
+
+        public void start(Animator.Callback callback, long duration) {
+            start(callback, duration, null);
+        }
+
+        public synchronized void start(Animator.Callback callback, long duration, Interpolator interpolator) {
+            cancel();
+
+            this.entry = new Entry(callback, duration, interpolator);
+
+            renderer.addTask(entry);
+            glView.requestRender();
+        }
+
+        public synchronized void cancel() {
+            if (entry != null) {
+                entry.cancelled = true;
+            }
+        }
+
+        public synchronized boolean isRunning() {
+            return entry != null && !entry.end;
+        }
     }
 }

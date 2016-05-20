@@ -1,9 +1,11 @@
 package info.elekiuo.grandgrotto.android;
 
 import android.opengl.GLSurfaceView;
+import android.os.SystemClock;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -11,6 +13,12 @@ import javax.microedition.khronos.opengles.GL10;
 import static android.opengl.GLES20.*;
 
 public class MainViewRenderer implements GLSurfaceView.Renderer {
+
+    public interface Task {
+        void run(long time);
+    }
+
+    private final List<Task> taskList = new ArrayList<>();
 
     private final TextureAtlas textureAtlas;
     private Mesh stageMesh;
@@ -33,6 +41,19 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
     public MainViewRenderer(TextureAtlas textureAtlas) {
         this.textureAtlas = textureAtlas;
     }
+
+    public void addTask(Task task) {
+        synchronized (taskList) {
+            taskList.add(task);
+        }
+    }
+
+    public void removeTask(Task task) {
+        synchronized (taskList) {
+            taskList.remove(task);
+        }
+    }
+
 
     public synchronized void setWorldMatrix(float[] worldMatrix) {
         System.arraycopy(worldMatrix, 0, this.worldMatrix, 0, 16);
@@ -66,6 +87,19 @@ public class MainViewRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public synchronized void onDrawFrame(GL10 gl) {
+        List<Task> copiedTaskList = new ArrayList<>();
+        synchronized (taskList) {
+            copiedTaskList.addAll(taskList);
+            taskList.clear();
+        }
+
+        if (!copiedTaskList.isEmpty()) {
+            long time = SystemClock.uptimeMillis();
+            for (Task task : copiedTaskList) {
+                task.run(time);
+            }
+        }
+
         glEnable(GL_TEXTURE_2D);
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);

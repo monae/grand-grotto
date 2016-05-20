@@ -39,6 +39,7 @@ import info.elekiuo.grandgrotto.geometry.Vector;
 public class MainView extends FrameLayout {
 
     private final Animator animator = new Animator();
+    private final Animator cameraAnimator = new Animator();
 
     private Shell shell;
 
@@ -169,6 +170,7 @@ public class MainView extends FrameLayout {
 
     public void refresh() {
         animator.cancel();
+        cameraAnimator.cancel();
 
         shell = new Shell(new Random());
         controlView.setShell(shell);
@@ -354,8 +356,10 @@ public class MainView extends FrameLayout {
     }
 
     private void handleMove() {
-        final float scale1 = scrollState.scale;
         final Region sight1 = shell.getSight();
+        final float x1 = scrollState.x;
+        final float y1 = scrollState.y;
+        final float scale1 = scrollState.scale;
 
         final MoveTracker moveTracker = new MoveTracker();
         moveTracker.addAll(shell.getMonsters());
@@ -375,8 +379,10 @@ public class MainView extends FrameLayout {
             }
         }
 
-        final float scale2 = detectScale();
         final Region sight2 = shell.getSight();
+        final float x2 = (shell.getPlayer().getPosition().x * 6 + sight2.west + sight2.east) / 8f;
+        final float y2 = (shell.getPlayer().getPosition().y * 6 + sight2.north + sight2.south) / 8f;
+        final float scale2 = detectScale();
 
         animator.start(new Animator.Callback() {
             @Override
@@ -387,15 +393,10 @@ public class MainView extends FrameLayout {
             }
             @Override
             public void onAnimationUpdate(float fraction) {
-                PointF playerPoint = null;
                 List<Sprite> sprites = new ArrayList<>();
                 for (Monster monster : moveTracker.getMonsters()) {
                     PointF p = moveTracker.getPoint(monster, fraction);
                     sprites.add(createSprite(monster, p.x, p.y));
-
-                    if (monster == shell.getPlayer()) {
-                        playerPoint = p;
-                    }
                 }
                 renderer.setSprites(sprites);
 
@@ -405,24 +406,38 @@ public class MainView extends FrameLayout {
                         sight1.east + (sight2.east - sight1.east) * fraction,
                         sight1.south + (sight2.south - sight1.south) * fraction));
 
-                if (playerPoint != null) {
-                    scroller.updateState(new Scroller.State(playerPoint.x, playerPoint.y,
-                            scale1 + (scale2 - scale1) * fraction));
-                }
-
                 glView.requestRender();
             }
             @Override
             public void onAnimationEnd() {
                 updateMonsterSprites();
                 updateMask();
-                Position c = shell.getPlayer().getPosition();
-                scroller.updateState(new Scroller.State(c.x, c.y, scale2));
                 glView.requestRender();
 
                 handleMessage();
             }
         }, 200);
+
+        cameraAnimator.start(new Animator.Callback() {
+            @Override
+            public void onAnimationStart() {
+            }
+
+            @Override
+            public void onAnimationUpdate(float fraction) {
+                scroller.updateState(new Scroller.State(
+                        x1 + (x2 - x1) * fraction,
+                        y1 + (y2 - y1) * fraction,
+                        scale1 + (scale2 - scale1) * fraction));
+
+                glView.requestRender();
+            }
+
+            @Override
+            public void onAnimationEnd() {
+                //scroller.updateState(new Scroller.State(x2, y2, scale2));
+            }
+        }, 2000, new DecelerateInterpolator(2));
     }
 
     private void updateStatus() {
@@ -494,6 +509,7 @@ public class MainView extends FrameLayout {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        cameraAnimator.cancel();
         return scroller.handleTouchEvent(event) || super.onTouchEvent(event);
     }
 }

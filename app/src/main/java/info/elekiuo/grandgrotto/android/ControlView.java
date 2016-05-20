@@ -133,6 +133,8 @@ public class ControlView extends View {
         }
         Monster player = shell.getPlayer();
         if (player.isMovableTo(d)) {
+            lastD = null;
+            lastDD = null;
             mainView.move(d);
         } else if (d.isOrdinal()) {
             Vector v = d.vector;

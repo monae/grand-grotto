@@ -3,10 +3,10 @@ package info.elekiuo.grandgrotto.android;
 import static android.opengl.GLES20.*;
 
 public class Sprite {
-    public final VertexTexBuffer vertexBuffer;
-    public final float x;
-    public final float y;
-    public final boolean invert;
+    public VertexTexBuffer vertexBuffer;
+    public float x;
+    public float y;
+    public boolean invert;
 
     public Sprite(VertexTexBuffer vertexBuffer, float x, float y, boolean invert) {
         this.vertexBuffer = vertexBuffer;

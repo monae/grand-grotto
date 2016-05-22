@@ -22,7 +22,7 @@ class Kernel {
             Monster monster = new Monster();
             monster.setDirection(random.choose(directions));
             monster.setWeight(random.choose(new Integer[]{6, 12, 24}));
-            monster.group = Monster.GROUP_ENEMY + random.next(2);
+            monster.group = Monster.GROUP_ENEMY;
             placeMonster(monster);
         }
     }
@@ -96,6 +96,7 @@ class Kernel {
     }
 
     Message processAttack(Monster monster, Direction direction) {
+        monster.setDirection(direction);
         if (!board.canPassThrough(monster.getPosition(), direction)) {
             return null;
         }

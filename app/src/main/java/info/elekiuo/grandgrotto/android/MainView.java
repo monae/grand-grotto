@@ -5,6 +5,7 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.opengl.GLSurfaceView;
+import android.support.annotation.NonNull;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -184,7 +185,7 @@ public class MainView extends FrameLayout {
         //float d = getResources().getDisplayMetrics().density;
         Position position = player.getPosition();
         //float scale = Math.max(4 * d, Math.min(96 * d, scrollState.scale));
-        scroller.updateState(new Scroller.State(position.x, position.y, detectScale()));
+        scroller.updateState(detectState());
 
         updateMonsterSprites();
         updateStage();
@@ -194,16 +195,24 @@ public class MainView extends FrameLayout {
         updateStatus();
     }
 
+    private Scroller.State detectState() {
+        Region sight = shell.getSight();
+        Position position = shell.getPlayer().getPosition();
+        float x = (position.x * 6 + sight.west + sight.east) / 8f;
+        float y = (position.y * 6 + sight.north + sight.south) / 8f;
+        return new Scroller.State(x, y, detectScale());
+    }
+
     private float detectScale() {
         Region sight = shell.getSight();
         int max = Math.max(sight.getCols(), sight.getRows());
         float d = getResources().getDisplayMetrics().density;
-        if (max < 15) {
-            return 36 * d;
-        } else if (max < 25) {
+        if (max < 12) {
+            return 48 * d;
+        } else if (max < 20) {
+            return 40 * d;
+        } else if (max < 30) {
             return 32 * d;
-        } else if (max < 35) {
-            return 28 * d;
         } else {
             return 24 * d;
         }
@@ -237,7 +246,7 @@ public class MainView extends FrameLayout {
     }
 
     private VertexTexBuffer createMonsterVertexBuffer() {
-        return createBillboard(R.drawable.c2, 0.45f, 0.1f, 0f);
+        return createBillboard(R.drawable.c2, 0.45f, 0.1f, 0.125f);
     }
 
     private VertexTexBuffer createBillboard(int bitmap, float y, float z, float t) {
@@ -280,8 +289,10 @@ public class MainView extends FrameLayout {
         }
     }
 
+    private boolean locked;
+
     private void executeCommand(Command command) {
-        if (moveAnimator.isRunning()) {
+        if (locked) {
             return;
         }
         if (!shell.isExecutable(command)) {
@@ -297,6 +308,9 @@ public class MainView extends FrameLayout {
             if (message instanceof Message.Move || message instanceof Message.Rest) {
                 handleMove();
                 return;
+            } else if (message instanceof Message.Attack) {
+                handleAttack();
+                return;
             } else if (message instanceof Message.Injured) {
                 handleInjured();
                 return;
@@ -310,12 +324,7 @@ public class MainView extends FrameLayout {
             }
         }
 
-        postDelayed(new Runnable() {
-            @Override
-            public void run() {
                 controlView.checkMove();
-            }
-        }, 1);
     }
 
     private static class MoveTracker {
@@ -345,8 +354,11 @@ public class MainView extends FrameLayout {
 
         public PointF getPoint(Monster monster, float fraction) {
             List<Position> move = moves.get(monster);
-            if (move.size() <= 1) {
+            if (move.size() <= 1 || fraction <= 0) {
                 Position p = move.get(0);
+                return new PointF(p.x, p.y);
+            } else if (fraction >= 1) {
+                Position p = move.get(move.size() - 1);
                 return new PointF(p.x, p.y);
             }
 
@@ -361,6 +373,8 @@ public class MainView extends FrameLayout {
     }
 
     private void handleMove() {
+        locked = true;
+
         final Region sight1 = shell.getSight();
         final float x1 = scrollState.x;
         final float y1 = scrollState.y;
@@ -416,18 +430,16 @@ public class MainView extends FrameLayout {
             }
             @Override
             public void onAnimationEnd() {
-                updateMonsterSprites();
-                updateMask();
-                //glView.requestRender();
-
-                postDelayed(new Runnable() {
+                onAnimationUpdate(1);
+                post(new Runnable() {
                     @Override
                     public void run() {
+                        locked = false;
                         handleMessage();
                     }
-                }, 20);
+                });
             }
-        }, 200);
+        }, 250);
 
         cameraAnimator.start(new Animator.Callback() {
             @Override
@@ -457,7 +469,53 @@ public class MainView extends FrameLayout {
         statusView.setMaxLife(player.getMaxLife());
     }
 
+    private void handleAttack() {
+        locked = true;
+
+        Message.Attack message = (Message.Attack) shell.removeMessage();
+        Monster attacker = message.monster;
+        final Direction direction = message.direction;
+        final Position position = attacker.getPosition();
+
+        final Sprite attackerSprite = createSprite(attacker);
+        final List<Sprite> sprites = new ArrayList<>();
+        sprites.add(attackerSprite);
+        for (Monster monster : shell.getMonsters()) {
+            if (monster != attacker) {
+                sprites.add(createSprite(monster));
+            }
+        }
+
+        moveAnimator.start(new Animator.Callback() {
+            @Override
+            public void onAnimationStart() {
+                renderer.setSprites(sprites);
+            }
+
+            @Override
+            public void onAnimationUpdate(float fraction) {
+                float t = fraction * (1 - fraction) * 2;
+                attackerSprite.x = position.x + t * direction.vector.dx;
+                attackerSprite.y = position.y + t * direction.vector.dy;
+            }
+
+            @Override
+            public void onAnimationEnd() {
+                onAnimationUpdate(1);
+                postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        locked = false;
+                        handleMessage();
+                    }
+                }, 50);
+            }
+        }, 150);
+    }
+
     private void handleInjured() {
+        locked = true;
+
         Message.Injured message = (Message.Injured) shell.removeMessage();
         Monster monster = message.monster;
         Position position = monster.getPosition();
@@ -486,16 +544,17 @@ public class MainView extends FrameLayout {
             }
         }, 1000);
 
-        postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                handleMessage();
-            }
-        }, 200);
-
         if (monster == shell.getPlayer()) {
             updateStatus();
         }
+
+        post(new Runnable() {
+            @Override
+            public void run() {
+                locked = false;
+                handleMessage();
+            }
+        });
     }
 
     private void updateMonsterSprites() {
@@ -515,7 +574,7 @@ public class MainView extends FrameLayout {
     }
 
     public boolean isAnimating() {
-        return moveAnimator.isRunning();
+        return locked;
     }
 
     @Override

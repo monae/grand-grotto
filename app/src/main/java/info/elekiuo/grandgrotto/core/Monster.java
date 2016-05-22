@@ -17,8 +17,8 @@ public class Monster implements TurnTable.Weighted {
     private Position position;
     private Direction direction = Direction.EAST;
     int group;
-    int life = 20;
-    int maxLife = 20;
+    int life = 10;
+    int maxLife = 10;
     private int weight = 2;
 
     public Board getBoard() {

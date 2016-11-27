@@ -1,6 +1,9 @@
 package info.elekiuo.grandgrotto.core;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import info.elekiuo.grandgrotto.geometry.Direction;
 import info.elekiuo.grandgrotto.geometry.Matrix;
@@ -10,7 +13,7 @@ class Kernel {
     private final Random random;
     private final Board board;
     private final TurnTable<Monster> turnTable = new TurnTable<>();
-    private Message currentMessage;
+    private final List<Event> eventStack = new ArrayList<>();
 
     Kernel(Random random) {
         this.random = random;
@@ -57,45 +60,40 @@ class Kernel {
     }
 
     Monster getActiveMonster() {
-        return turnTable.get();
-    }
-
-    boolean isExecutable(Command command) {
-        return currentMessage == null &&
-                !turnTable.isEmpty() &&
-                command.isExecutable(this, turnTable.get());
+        return eventStack.isEmpty() ? turnTable.get() : null;
     }
 
     void execute(Command command) {
-        if (!isExecutable(command)) {
-            throw new IllegalArgumentException(command + " is not executable");
+        if (!eventStack.isEmpty()) {
+            throw new IllegalStateException("There are unhandled events");
         }
-        currentMessage = command.toMessage(this, turnTable.get());
+        if (turnTable.isEmpty()) {
+            throw new IllegalStateException("No monsters");
+        }
+        List<? extends Event> events = command.execute(this, turnTable.get());
+        eventStack.addAll(events);
         turnTable.rotate();
     }
 
-    Message peekMessage() {
-        return currentMessage;
+    Event peekEvent() {
+        return eventStack.isEmpty() ? null : eventStack.get(0);
     }
 
-    Message removeMessage() {
-        Message message = currentMessage;
-        currentMessage = message.process(this);
-        return message;
+    Event removeEvent() {
+        Event event = eventStack.remove(0);
+        List<? extends Event> newEvents = event.process(this);
+        if (newEvents != null) {
+            eventStack.addAll(0, newEvents);
+        }
+        return event;
     }
 
-    Message processRest(Monster monster) {
-        monster.heal(1);
-        return null;
-    }
-
-    Message processMove(Monster monster, Direction direction) {
+    List<? extends Event> processMove(Monster monster, Direction direction) {
         monster.move(direction);
-        monster.heal(random.next(4) / 3);
         return null;
     }
 
-    Message processAttack(Monster monster, Direction direction) {
+    List<? extends Event> processAttack(Monster monster, Direction direction) {
         monster.setDirection(direction);
         if (!board.canPassThrough(monster.getPosition(), direction)) {
             return null;
@@ -105,21 +103,21 @@ class Kernel {
             return null;
         }
         int damage = random.choose(3, 10);
-        return new Message.Injured(victim, damage);
+        return Collections.singletonList(new Event.Injured(victim, damage));
     }
 
-    Message processInjured(Monster monster, int quantity) {
+    List<? extends Event> processInjured(Monster monster, int quantity) {
         monster.life -= quantity;
         if (monster.life > 0) {
             return null;
         } else {
             monster.life = 0;
-            return new Message.Died(monster);
+            return Collections.<Event>singletonList(new Event.Died(monster));
         }
     }
 
-    Message processDied(Monster monster) {
-        board.removeMonster(monster.getPosition(), monster);
+    List<? extends Event> processDied(Monster monster) {
+        board.removeMonster(monster);
         turnTable.remove(monster);
         return null;
     }

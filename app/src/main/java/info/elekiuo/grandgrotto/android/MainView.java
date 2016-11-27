@@ -5,7 +5,6 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.opengl.GLSurfaceView;
-import android.support.annotation.NonNull;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -27,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import info.elekiuo.grandgrotto.core.Command;
-import info.elekiuo.grandgrotto.core.Message;
+import info.elekiuo.grandgrotto.core.Event;
 import info.elekiuo.grandgrotto.core.Monster;
 import info.elekiuo.grandgrotto.core.Random;
 import info.elekiuo.grandgrotto.core.Shell;
@@ -295,7 +294,7 @@ public class MainView extends FrameLayout {
         if (locked) {
             return;
         }
-        if (!shell.isExecutable(command)) {
+        if (shell.peekEvent() != null) {
             return;
         }
         shell.execute(command);
@@ -303,24 +302,24 @@ public class MainView extends FrameLayout {
     }
 
     private void handleMessage() {
-        Message message;
-        while ((message = shell.peekMessage()) != null) {
-            if (message instanceof Message.Move || message instanceof Message.Rest) {
+        Event event;
+        while ((event = shell.peekEvent()) != null) {
+            if (event instanceof Event.Move) {
                 handleMove();
                 return;
-            } else if (message instanceof Message.Attack) {
+            } else if (event instanceof Event.Attack) {
                 handleAttack();
                 return;
-            } else if (message instanceof Message.Injured) {
+            } else if (event instanceof Event.Injured) {
                 handleInjured();
                 return;
             } else {
-                shell.removeMessage();
-                if (message instanceof Message.Died) {
+                shell.popEvent();
+                if (event instanceof Event.Died) {
                     updateMonsterSprites();
                     glView.requestRender();
                 }
-                System.out.println(message);
+                System.out.println(event);
             }
         }
 
@@ -383,18 +382,14 @@ public class MainView extends FrameLayout {
         final MoveTracker moveTracker = new MoveTracker();
         moveTracker.addAll(shell.getMonsters());
 
-        Message message;
-        while ((message = shell.peekMessage()) != null && (message instanceof Message.Move || message instanceof Message.Rest)) {
-            if (message instanceof Message.Move) {
-                Monster monster = ((Message.Move) message).monster;
-                moveTracker.add(monster);
-                shell.removeMessage();
-                moveTracker.add(monster);
-                if (monster == shell.getPlayer() && !sight1.equals(shell.getSight())) {
-                    moveTracker.addAll(shell.getMonsters());
-                }
-            } else {
-                shell.removeMessage();
+        Event event;
+        while ((event = shell.peekEvent()) != null && event instanceof Event.Move) {
+            Monster monster = ((Event.Move) event).monster;
+            moveTracker.add(monster);
+            shell.popEvent();
+            moveTracker.add(monster);
+            if (monster == shell.getPlayer() && !sight1.equals(shell.getSight())) {
+                moveTracker.addAll(shell.getMonsters());
             }
         }
 
@@ -472,7 +467,7 @@ public class MainView extends FrameLayout {
     private void handleAttack() {
         locked = true;
 
-        Message.Attack message = (Message.Attack) shell.removeMessage();
+        Event.Attack message = (Event.Attack) shell.popEvent();
         Monster attacker = message.monster;
         final Direction direction = message.direction;
         final Position position = attacker.getPosition();
@@ -516,7 +511,7 @@ public class MainView extends FrameLayout {
     private void handleInjured() {
         locked = true;
 
-        Message.Injured message = (Message.Injured) shell.removeMessage();
+        Event.Injured message = (Event.Injured) shell.popEvent();
         Monster monster = message.monster;
         Position position = monster.getPosition();
         PointF p = getScreenPoint(position.x, position.y, 0.5f);

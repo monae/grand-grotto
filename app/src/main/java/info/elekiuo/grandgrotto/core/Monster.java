@@ -29,10 +29,8 @@ public class Monster implements TurnTable.Weighted {
         return position;
     }
 
-    void setBoardWithPosition(Board board, Position position) {
-        if ((board == null) != (position == null)) {
-            throw new IllegalArgumentException();
-        }
+    // Called from Board
+    void setParentInternal(Board board, Position position) {
         this.board = board;
         this.position = position;
     }
@@ -62,20 +60,28 @@ public class Monster implements TurnTable.Weighted {
         this.weight = weight;
     }
 
+    private void resetPosition(Position position) {
+        Board board = this.board;
+        board.removeMonster(this);
+        board.putMonster(position, this);
+    }
+
     public boolean isMovableTo(Direction direction) {
         Position newPosition = position.plus(direction);
         return board.canStandOn(newPosition) && board.getMonster(newPosition) == null && board.canPassThrough(position, direction);
     }
 
-    public void move(Direction direction) {
-        Board board = this.board;
-        Position position = this.position;
-        board.removeMonster(position, this);
-        board.putMonster(position.plus(direction), this);
+    boolean move(Direction direction) {
         this.direction = direction;
+        if (isMovableTo(direction)) {
+            resetPosition(position.plus(direction));
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    public void heal(int quantity) {
+    void heal(int quantity) {
         life = Math.min(maxLife, life + quantity);
     }
 
@@ -83,11 +89,11 @@ public class Monster implements TurnTable.Weighted {
         return board.findRegion(position).extend(1);
     }
 
-    public boolean isHostileTo(Monster monster) {
+    boolean isHostileTo(Monster monster) {
         return this.group != monster.group;
     }
 
-    public List<Monster> findEnemies() {
+    private List<Monster> findEnemies() {
         List<Monster> result = new ArrayList<>();
         Region sight = getSight();
         for (int y = sight.north; y < sight.south; y++) {
@@ -189,5 +195,17 @@ public class Monster implements TurnTable.Weighted {
         if (terrain.canStandOn() && !position.equals(lastPosition)) {
             doors.add(position);
         }
+    }
+
+    public boolean isVisible(Position position) {
+        return getSight().contains(position);
+    }
+
+    public boolean isVisible(Monster monster) {
+        return this == monster || isVisible(monster.getPosition());
+    }
+
+    public boolean isVisible(Monster monster, Direction direction) {
+        return this == monster || isVisible(monster.getPosition()) || isVisible(monster.getPosition().plus(direction));
     }
 }

@@ -60,72 +60,52 @@ public class Shell {
         return map;
     }
 
-    public boolean isExecutable(Command command) {
-        return kernel.getActiveMonster() == player && kernel.isExecutable(command);
-    }
-
     public void execute(Command command) {
-        if (!isExecutable(command)) {
-            throw new IllegalArgumentException(command + " is not executable");
+        if (kernel.getActiveMonster() != player) {
+            throw new IllegalArgumentException(player + " is not active");
         }
         kernel.execute(command);
     }
 
-    private boolean isEnd(Message message) {
-        return message instanceof Message.Died && ((Message.Died) message).monster == player;
+    private boolean isEnd(Event event) {
+        return event instanceof Event.Died && ((Event.Died) event).monster == player;
     }
 
-    private boolean isVisible(Message message) {
-        if (message == null) {
-            return true;
+    public Event peekEvent() {
+        while (true) {
+            Event event = peekEventInternal();
+            if (event == null || event.isObservableFrom(player)) {
+                return isEnd(event) ? null : event;
+            }
+            kernel.removeEvent();
         }
-        Monster monster = message.getMonster();
-        if (monster == player) {
-            return true;
-        }
-        Region sight = getSight();
-        Position position = monster.getPosition();
-        if (sight.contains(position)) {
-            return true;
-        }
-        if (message instanceof Message.Move && sight.contains(position.plus(((Message.Move) message).direction))) {
-            return true;
-        }
-        return false;
     }
 
-    public Message peekMessage() {
-        Message message = kernel.peekMessage();
-        return isEnd(message) ? null : message;
-    }
-
-    public Message removeMessage() {
-        Message result = removeMessageInternal();
-        while (!isVisible(peekMessage())) {
-            removeMessageInternal();
-        }
-        return result;
-    }
-
-    private Message removeMessageInternal() {
-        Message message = kernel.removeMessage();
-        if (isEnd(message)) {
+    public Event popEvent() {
+        Event event = peekEvent();
+        if (event == null) {
             throw new UnsupportedOperationException();
         }
-
-        if (message instanceof Message.Move && ((Message.Move) message).monster == player) {
+        kernel.removeEvent();
+        if (event instanceof Event.Move && ((Event.Move) event).monster == player) {
             updateMap();
         }
+        return event;
+    }
 
-        if (kernel.peekMessage() == null) {
-            Monster monster = kernel.getActiveMonster();
-            if (monster != player) {
-                Command command = monster.doSomething(kernel.getRandom());
-                kernel.execute(command);
+    private Event peekEventInternal() {
+        while (true) {
+            Event event = kernel.peekEvent();
+            if (event != null) {
+                return event;
             }
+            Monster monster = kernel.getActiveMonster();
+            if (monster == player) {
+                return null;
+            }
+            Command command = monster.doSomething(kernel.getRandom());
+            kernel.execute(command);
         }
-
-        return message;
     }
 
     private void updateMap() {

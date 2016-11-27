@@ -1,23 +1,20 @@
 package info.elekiuo.grandgrotto.core;
 
+import java.util.Collections;
+import java.util.List;
+
 import info.elekiuo.grandgrotto.geometry.Direction;
 
 public abstract class Command {
     private Command() {
     }
 
-    abstract boolean isExecutable(Kernel kernel, Monster monster);
-    abstract Message toMessage(Kernel kernel, Monster monster);
+    abstract List<? extends Event> execute(Kernel kernel, Monster monster);
 
     public static class Rest extends Command {
         @Override
-        boolean isExecutable(Kernel kernel, Monster monster) {
-            return true;
-        }
-
-        @Override
-        public Message toMessage(Kernel kernel, Monster monster) {
-            return new Message.Rest(monster);
+        public List<? extends Event> execute(Kernel kernel, Monster monster) {
+            return Collections.emptyList();
         }
     }
 
@@ -29,13 +26,8 @@ public abstract class Command {
         }
 
         @Override
-        boolean isExecutable(Kernel kernel, Monster monster) {
-            return monster.isMovableTo(direction);
-        }
-
-        @Override
-        public Message toMessage(Kernel kernel, Monster monster) {
-            return new Message.Move(monster, direction);
+        public List<? extends Event> execute(Kernel kernel, Monster monster) {
+            return Collections.singletonList(new Event.Move(monster, direction));
         }
     }
 
@@ -47,13 +39,8 @@ public abstract class Command {
         }
 
         @Override
-        boolean isExecutable(Kernel kernel, Monster monster) {
-            return true;
-        }
-
-        @Override
-        public Message toMessage(Kernel kernel, Monster monster) {
-            return new Message.Attack(monster, direction);
+        public List<? extends Event> execute(Kernel kernel, Monster monster) {
+            return Collections.singletonList(new Event.Attack(monster, direction));
         }
     }
 }

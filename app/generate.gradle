@@ -1,10 +1,10 @@
-
-task generateMessageClass(type: GenerateMessageClassTask) {
+/*
+task generateEventClass(type: GenerateEventClassTask) {
     source = file('src/main/java/info/elekiuo/grandgrotto/core/Kernel.java')
-    dest = file('src/main/java/info/elekiuo/grandgrotto/core/Message.java')
+    dest = file('src/main/java/info/elekiuo/grandgrotto/core/Event.java')
 }
 
-class GenerateMessageClassTask extends DefaultTask {
+class GenerateEventClassTask extends DefaultTask {
     @InputFile def source
     @OutputFile def dest
 
@@ -13,7 +13,7 @@ class GenerateMessageClassTask extends DefaultTask {
         def text = source.getText();
 
         def models = []
-        def m = text =~ /Message\s+process(\w+)\((.*?)\)/
+        def m = text =~ /List<\? extends Event>\s+process(\w+)\((.*?)\)/
         while (m.find()) {
             def fields = []
             def m2 = m.group(2) =~ /\s*(\w+)\s+(\w*)\s*,?/
@@ -31,14 +31,15 @@ class GenerateMessageClassTask extends DefaultTask {
         return """\
 package info.elekiuo.grandgrotto.core;
 
+import java.util.List;
+
 import info.elekiuo.grandgrotto.geometry.Direction;
 
-public abstract class Message {
-    private Message() {
+public abstract class Event {
+    private Event() {
     }
 
-    abstract Monster getMonster();
-    abstract Message process(Kernel kernel);
+    abstract List<? extends Event> process(Kernel kernel);
 
 ${models.collect { model -> generateModelSource(model) }.join '\n'}\
 }
@@ -50,7 +51,7 @@ ${models.collect { model -> generateModelSource(model) }.join '\n'}\
         def fields = model.fields
 
         return """\
-    public static class ${name} extends Message {
+    public static class ${name} extends Event {
 ${
         fields.collect { f ->
             """\
@@ -75,15 +76,11 @@ ${
         }
 
         @Override
-        public Monster getMonster() {
-            return monster;
-        }
-
-        @Override
-        Message process(Kernel kernel) {
+        List<? extends Event> process(Kernel kernel) {
             return kernel.process${name}(${fields*.name.join ', '});
         }
     }
 """.toString()
     }
 }
+*/

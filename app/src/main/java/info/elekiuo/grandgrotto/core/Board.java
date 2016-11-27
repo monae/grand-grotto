@@ -64,34 +64,25 @@ public class Board {
         if (position == null) {
             throw new IllegalArgumentException("position is null");
         }
-        if (monster.getBoard() != null || monster.getPosition() != null) {
+        if (monster.getBoard() != null) {
             throw new IllegalArgumentException("monster is already on some board");
         }
         if (monsters.containsKey(position)) {
             throw new IllegalArgumentException(position + " is held by " + monsters.get(position));
         }
         monsters.put(position, monster);
-        monster.setBoardWithPosition(this, position);
+        monster.setParentInternal(this, position);
     }
 
-    void removeMonster(Position position, Monster monster) {
+    void removeMonster(Monster monster) {
         if (monster == null) {
             throw new IllegalArgumentException("monster is null");
         }
-        if (position == null) {
-            throw new IllegalArgumentException("position is null");
+        if (monster.getBoard() != this) {
+            throw new IllegalArgumentException("monster is on another board");
         }
-        if (monster.getBoard() != this || !position.equals(monster.getPosition())) {
-            throw new IllegalArgumentException("monster is on another position");
-        }
-        if (!monsters.containsKey(position)) {
-            throw new IllegalArgumentException(position + " has no monsters");
-        }
-        if (monsters.get(position) != monster) {
-            throw new IllegalArgumentException(position + " is held by " + monsters.get(position));
-        }
-        monsters.remove(position);
-        monster.setBoardWithPosition(null, null);
+        monsters.remove(monster.getPosition());
+        monster.setParentInternal(null, null);
     }
 
     public Region findRegion(Position position) {

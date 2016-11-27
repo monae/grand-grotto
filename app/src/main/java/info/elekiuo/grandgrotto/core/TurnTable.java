@@ -14,6 +14,9 @@ class TurnTable<T extends TurnTable.Weighted> {
         public int weight;
 
         private Entry(T value) {
+            if (value == null) {
+                throw new NullPointerException();
+            }
             this.value = value;
         }
     }
